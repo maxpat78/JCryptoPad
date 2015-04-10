@@ -1,0 +1,1 @@
+This JCryptoPad source code is hereby placed into the Public Domain by its Author maxpat78.
