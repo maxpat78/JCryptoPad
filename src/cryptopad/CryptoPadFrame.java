@@ -21,7 +21,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.ImageIcon;
@@ -43,7 +45,12 @@ implements DocumentListener, WindowListener {
     /**
      * Creates new form CryptoPadFrame
      */
-    public CryptoPadFrame() {
+    public CryptoPadFrame() throws NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
+        // Un trucco per forzare la selezione di UTF-8 sulla TextArea
+        System.setProperty("file.encoding","UTF-8");
+        Field charset = Charset.class.getDeclaredField("defaultCharset");
+        charset.setAccessible(true);
+        charset.set(null,null);
         initComponents();
         appIcon = Toolkit.getDefaultToolkit()
                 .getImage(URL.class.getResource("/icon.png"));
@@ -422,7 +429,7 @@ implements DocumentListener, WindowListener {
                 MiniZipAE mzip = new MiniZipAE();
                 mzip.set_password(pwd.getPassword());
                 mzip.read(dis);
-                String s = new String(mzip.get(), "UTF-8");
+                String s = new String(mzip.get());
                 
                 // Windows Style CR-LF
                 s.replace("\r\n", "\n");

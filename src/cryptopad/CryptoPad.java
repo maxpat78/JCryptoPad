@@ -13,7 +13,7 @@ public class CryptoPad {
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
         CryptoPadFrame tbox = new CryptoPadFrame();
         tbox.setVisible(true);
     }
