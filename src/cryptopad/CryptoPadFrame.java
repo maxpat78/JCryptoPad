@@ -422,7 +422,7 @@ implements DocumentListener, WindowListener {
                 MiniZipAE mzip = new MiniZipAE();
                 mzip.set_password(pwd.getPassword());
                 mzip.read(dis);
-                String s = new String(mzip.get());
+                String s = new String(mzip.get(), "UTF-8");
                 
                 // Windows Style CR-LF
                 s.replace("\r\n", "\n");
