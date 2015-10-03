@@ -44,6 +44,8 @@ implements DocumentListener, WindowListener {
 
     /**
      * Creates new form CryptoPadFrame
+     * @throws java.lang.NoSuchFieldException
+     * @throws java.lang.IllegalAccessException
      */
     public CryptoPadFrame() throws NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
         // Un trucco per forzare la selezione di UTF-8 sulla TextArea
@@ -326,7 +328,7 @@ implements DocumentListener, WindowListener {
                     DataOutputStream dos = new DataOutputStream(os)) {
                 
                 byte[] s = TextArea.getText()
-                        .replace("\n", "\r\n") // Windows CR-LF convention
+                        .replaceAll("[^\r]\n", "\r\n") // Windows CR-LF convention
                         .getBytes("UTF-8");
                 
                 MiniZipAE mzip = new MiniZipAE();
