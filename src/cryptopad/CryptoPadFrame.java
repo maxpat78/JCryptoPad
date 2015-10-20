@@ -24,8 +24,6 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -48,8 +46,9 @@ implements DocumentListener, WindowListener {
      * @throws java.lang.IllegalAccessException
      */
     public CryptoPadFrame() throws NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
-        // Un trucco per forzare la selezione di UTF-8 sulla TextArea
+        // Forza UTF-8 e fine riga
         System.setProperty("file.encoding","UTF-8");
+        System.setProperty("line.separator", "\n");
         Field charset = Charset.class.getDeclaredField("defaultCharset");
         charset.setAccessible(true);
         charset.set(null,null);
@@ -95,6 +94,8 @@ implements DocumentListener, WindowListener {
         miEdit_SelectAll = new javax.swing.JMenuItem();
         mFormatMenu = new javax.swing.JMenu();
         miFormat_Wordwrap = new javax.swing.JCheckBoxMenuItem();
+        miFormat_IncFontSize = new javax.swing.JMenuItem();
+        miFormat_DecFontSize = new javax.swing.JMenuItem();
         miFormat_Font = new javax.swing.JMenuItem();
         mViewMenu = new javax.swing.JMenu();
         mHelpMenu = new javax.swing.JMenu();
@@ -105,6 +106,7 @@ implements DocumentListener, WindowListener {
         setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
 
         TextArea.setColumns(20);
+        TextArea.setFont(new java.awt.Font("Courier New", 0, 14)); // NOI18N
         TextArea.setLineWrap(true);
         TextArea.setRows(5);
         TextArea.setTabSize(4);
@@ -255,6 +257,24 @@ implements DocumentListener, WindowListener {
         });
         mFormatMenu.add(miFormat_Wordwrap);
 
+        miFormat_IncFontSize.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ADD, java.awt.event.InputEvent.CTRL_MASK));
+        miFormat_IncFontSize.setText("Aumenta carattere");
+        miFormat_IncFontSize.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                miFormat_IncFontSizeActionPerformed(evt);
+            }
+        });
+        mFormatMenu.add(miFormat_IncFontSize);
+
+        miFormat_DecFontSize.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_MINUS, java.awt.event.InputEvent.CTRL_MASK));
+        miFormat_DecFontSize.setText("Riduci carattere");
+        miFormat_DecFontSize.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                miFormat_DecFontSizeActionPerformed(evt);
+            }
+        });
+        mFormatMenu.add(miFormat_DecFontSize);
+
         miFormat_Font.setText("Carattere...");
         miFormat_Font.setEnabled(false);
         miFormat_Font.addActionListener(new java.awt.event.ActionListener() {
@@ -322,24 +342,21 @@ implements DocumentListener, WindowListener {
             miFile_SaveAsActionPerformed(evt);
             return;
         }
-        
-        try {
-            try (OutputStream os = new FileOutputStream(curDocument);
-                    DataOutputStream dos = new DataOutputStream(os)) {
-                
-                byte[] s = TextArea.getText()
-                        .replaceAll("[^\r]\n", "\r\n") // Windows CR-LF convention
-                        .getBytes("UTF-8");
-                
-                MiniZipAE mzip = new MiniZipAE();
-                mzip.set_password(curPassword);
-                mzip.set_comment(sDocument);
-                mzip.append(curDocument.getName().replace(sEtxt, ".txt"), s);
-                mzip.write(dos);
-            }
+       
+        try (OutputStream os = new FileOutputStream(curDocument);
+             DataOutputStream dos = new DataOutputStream(os)) {
+
+            byte[] s = TextArea.getText().getBytes("UTF-8");
+
+            MiniZipAE mzip = new MiniZipAE();
+            mzip.set_password(curPassword);
+            mzip.set_comment(sDocument);
+            mzip.append(curDocument.getName().replace(sEtxt, ".txt"), s);
+            mzip.write(dos);
+            
             fileContentModified = false;
-        } catch (IOException ex) {
-        } catch (MiniZipException ex) {
+        }
+        catch (IOException | MiniZipException ex) {
             JOptionPane.showMessageDialog(this,
                     ex.getMessage(),
                     sTitle.substring(2),
@@ -424,34 +441,30 @@ implements DocumentListener, WindowListener {
         if (0 == pwd.getPassword().length)
             return;
 
-        try {
-            try (InputStream is = new FileInputStream(curDocument);
-                    DataInputStream dis = new DataInputStream(is)) {
+        try (InputStream is = new FileInputStream(curDocument);
+             DataInputStream dis = new DataInputStream(is)) {
 
                 MiniZipAE mzip = new MiniZipAE();
                 mzip.set_password(pwd.getPassword());
                 mzip.read(dis);
                 String s = new String(mzip.get());
-                
-                // Windows Style CR-LF
-                s.replace("\r\n", "\n");
-                
+
                 TextArea.setText(s);
                 setTitle(curDocument.getName().replace(sEtxt, "")+sTitle);
                 fileContentModified = false;
                 curPassword = pwd.getPassword();
-            }
-        } catch (FileNotFoundException ex) {
-            JOptionPane.showMessageDialog(this,
-                    "Errore nell'apertura del file "+curDocument,
-                    "Errore",
-                    JOptionPane.ERROR_MESSAGE);
-        } catch (MiniZipException ex) {
+        }
+        catch (FileNotFoundException ex) {
+           JOptionPane.showMessageDialog(this,
+                   "Errore nell'apertura del file "+curDocument,
+                   "Errore",
+                   JOptionPane.ERROR_MESSAGE);
+        }
+        catch (MiniZipException | IOException ex) {
             JOptionPane.showMessageDialog(this,
                     ex.getMessage(),
                     sTitle.substring(2),
                     JOptionPane.ERROR_MESSAGE);
-        } catch (IOException ex) {
         }
     }//GEN-LAST:event_miFile_OpenActionPerformed
 
@@ -571,11 +584,23 @@ implements DocumentListener, WindowListener {
         // Paste
         if ( (clip.getContents(null) != null) &&
                 clip.getContents(null)
-                        .isDataFlavorSupported(DataFlavor.stringFlavor) )
+                    .isDataFlavorSupported(DataFlavor.stringFlavor) )
             mMenuBar.getMenu(1).getItem(4).setEnabled(true);
         else
             mMenuBar.getMenu(1).getItem(4).setEnabled(false);
     }//GEN-LAST:event_mEditMenuMenuSelected
+
+    private void miFormat_IncFontSizeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_miFormat_IncFontSizeActionPerformed
+        TextArea.setFont(new java.awt.Font("Courier New", 0,
+                TextArea.getFont().getSize()+1));
+    }//GEN-LAST:event_miFormat_IncFontSizeActionPerformed
+
+    private void miFormat_DecFontSizeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_miFormat_DecFontSizeActionPerformed
+        if (TextArea.getFont().getSize() < 8)
+            return;
+        TextArea.setFont(new java.awt.Font("Courier New", 0,
+                TextArea.getFont().getSize()-1));
+    }//GEN-LAST:event_miFormat_DecFontSizeActionPerformed
 
     // Variabili dichiarate manualmente
     private final String sTitle = " - JCryptoPad";
@@ -613,7 +638,9 @@ implements DocumentListener, WindowListener {
     private javax.swing.JMenuItem miFile_Open;
     private javax.swing.JMenuItem miFile_Save;
     private javax.swing.JMenuItem miFile_SaveAs;
+    private javax.swing.JMenuItem miFormat_DecFontSize;
     private javax.swing.JMenuItem miFormat_Font;
+    private javax.swing.JMenuItem miFormat_IncFontSize;
     private javax.swing.JCheckBoxMenuItem miFormat_Wordwrap;
     private javax.swing.JMenuItem miHelp_About;
     private javax.swing.JMenuItem miHelp_Help;

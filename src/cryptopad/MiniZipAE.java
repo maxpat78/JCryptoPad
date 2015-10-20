@@ -10,8 +10,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.zip.*;
 import javax.crypto.*;
 import javax.crypto.spec.*;
@@ -108,11 +106,10 @@ class PKHeader {
         
         byte[] sig = new byte[4];
         bb.get(sig);
-        if (! Arrays.equals(sig, "PK\03\04".getBytes()))
-            throw new MiniZipException("UNKNOWN LOCAL HEADER");
-        if (bb.getShort() != 0x33 ||
+        if (! Arrays.equals(sig, "PK\03\04".getBytes()) ||
+           (bb.getShort() != 0x33 ||
                 bb.getShort() != 1 ||
-                bb.getShort() != 99)
+                bb.getShort() != 99))
             throw new MiniZipException("UNKNOWN LOCAL HEADER");
         bb.getShort();
         bb.getShort();
@@ -220,7 +217,6 @@ public class MiniZipAE {
             else
                 set_aes_strength(1);
         } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(MiniZipAE.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
@@ -268,7 +264,7 @@ public class MiniZipAE {
         pkh.dwCompressedSize = compressor.deflate(compressed);
         compressor.end();
         
-        // Generates a (secure) random 128-bit salt
+        // Generates a (secure) random salt
         salt = new byte[saltsize];
         SecureRandom rng = new SecureRandom();
         rng.nextBytes(salt);
@@ -307,7 +303,7 @@ public class MiniZipAE {
             if (expandedLen != pkh.dwUncompressedSize) 
                 throw new MiniZipException("INFLATE ERROR");
         } catch (DataFormatException ex) {
-                throw new MiniZipException("INFLATE ERROR");
+            throw new MiniZipException("INFLATE ERROR");
         }
         decompressor.end();
         
@@ -353,7 +349,7 @@ public class MiniZipAE {
     }
     
     void write(DataOutputStream zip) throws IOException {
-        // Real size + salt(16) + passwordvv(2) + HMAC(10)
+        // Real size + salt + passwordvv(2) + HMAC(10)
         pkh.dwCompressedSize += (saltsize+12);
         zip.write(pkh.asBytesPK0304());
         
@@ -384,8 +380,7 @@ public class MiniZipAE {
     }
     
     byte[] AE_gen_keys(char[] password, byte[] salt) {
-        // Derives the 256-bit AES and HMAC-SHA1-80 keys,
-        // plus 16-bit verification value
+        // Derives the AES and HMAC-SHA1-80 keys, plus 16-bit verification value
         byte[] keys = null;
         try {
             PBEKeySpec spec = new PBEKeySpec(password, salt, 1000, (2+2*keysize)*8);
