@@ -72,12 +72,10 @@ class PKHeader {
     short wVersionToExtract = 0x33;
     short wGPBitFlag = 1;
     short wCompressionMethod = 99; // 99=AES encrypted
-    short wDOSModTime;
-    short wDOSModDate;
     long dwCrc32;
     int dwCompressedSize;
     int dwUncompressedSize;
-    short wFilenameLength = 0;
+    short wFilenameLength = 4;
     short wExtraFieldLength = 11; // sizeof(AEHEADER)
     short wFileCommentLength = 0;
     short wDiskNumberStart = 0;
@@ -87,16 +85,8 @@ class PKHeader {
     byte[] sFileName;
     ExtraFieldAE bbExtraField = new ExtraFieldAE();
     
-    PKHeader() {
-        // Records current date and time in DOS format
-        Calendar t = Calendar.getInstance();
-        wDOSModDate = (short) ((t.get(Calendar.YEAR)-1980) << 9 |
-                t.get(Calendar.MONTH)+1 << 5 |
-                t.get(Calendar.DAY_OF_MONTH));
-        
-        wDOSModTime = (short) (t.get(Calendar.HOUR_OF_DAY) << 11 |
-                t.get(Calendar.MINUTE) << 5 |
-                t.get(Calendar.SECOND)/2);
+    PKHeader()
+    {
     }
     
     PKHeader(byte[] data) throws MiniZipException {
@@ -122,19 +112,19 @@ class PKHeader {
     
     byte[] asBytesPK0304() {
         ByteBuffer bb;
-        bb = ByteBuffer.allocate(41+wFilenameLength);
+        bb = ByteBuffer.allocate(45);
         bb.order(ByteOrder.LITTLE_ENDIAN);
         szSignature[2] = 0x03;
         szSignature[3] = 0x04;
         put_common_field(bb, false);
-        bb.put(sFileName);
+        bb.put("data".getBytes());
         bb.put(bbExtraField.asBytes());
         return bb.array();
     }
     
     byte[] asBytesPK0102() {
         ByteBuffer bb;
-        bb = ByteBuffer.allocate(57+wFilenameLength);
+        bb = ByteBuffer.allocate(61);
         bb.order(ByteOrder.LITTLE_ENDIAN);
         szSignature[2] = 0x01;
         szSignature[3] = 0x02;
@@ -144,7 +134,7 @@ class PKHeader {
         bb.putShort(wInternalAttributes);
         bb.putInt(dwExternalAttributes);
         bb.putInt(dwLocalHeaderOffset);
-        bb.put(sFileName);
+        bb.put("data".getBytes());
         bb.put(bbExtraField.asBytes());
         return bb.array();
     }
@@ -165,9 +155,9 @@ class PKHeader {
         // Total Central Directory entries
         bb.putShort((short) 1);
         // Central Directory size
-        bb.putInt(57+wFilenameLength);
+        bb.putInt(61);
         // Offset of Central Directory in this disk
-        bb.putInt(41+wFilenameLength+dwCompressedSize);
+        bb.putInt(45+dwCompressedSize);
         // Comment length
         bb.putShort((short) comment.length);
         bb.put(comment);
@@ -181,12 +171,12 @@ class PKHeader {
         bb.putShort(wVersionToExtract);
         bb.putShort(wGPBitFlag);
         bb.putShort(wCompressionMethod);
-        bb.putShort(wDOSModTime);
-        bb.putShort(wDOSModDate);
+        bb.putShort((short) 0); // Fixed to 01-01-1980 00:00
+        bb.putShort((short) 33);
         bb.putInt((int) dwCrc32);
         bb.putInt(dwCompressedSize);
         bb.putInt(dwUncompressedSize);
-        bb.putShort(wFilenameLength);
+        bb.putShort((short) 4);
         bb.putShort(wExtraFieldLength);
     }
 };
@@ -245,9 +235,7 @@ public class MiniZipAE {
     }
     
     boolean append(String name, byte[] data) throws MiniZipException {
-        pkh.sFileName = name.getBytes();
-        pkh.wFilenameLength = (short) pkh.sFileName.length;
-        
+        pkh.sFileName = "data".getBytes();
         pkh.dwUncompressedSize = data.length;
         
         // Calculates CRC-32 on uncompressed input
