@@ -346,12 +346,15 @@ implements DocumentListener, WindowListener {
         try (OutputStream os = new FileOutputStream(curDocument);
              DataOutputStream dos = new DataOutputStream(os)) {
 
-            byte[] s = TextArea.getText().getBytes("UTF-8");
+            // Adds BOM
+            java.io.ByteArrayOutputStream ostr = new java.io.ByteArrayOutputStream();
+            ostr.write(new byte[]{(byte) 0xEF, (byte)0xBB, (byte) 0xBF});
+            ostr.write(TextArea.getText().getBytes("UTF-8"));
 
             MiniZipAE mzip = new MiniZipAE();
             mzip.set_password(curPassword);
             mzip.set_comment(sDocument);
-            mzip.append(curDocument.getName().replace(sEtxt, ".txt"), s);
+            mzip.append(curDocument.getName().replace(sEtxt, ".txt"), ostr.toByteArray());
             mzip.write(dos);
             
             fileContentModified = false;
@@ -420,7 +423,7 @@ implements DocumentListener, WindowListener {
         }
 
         fileChooser = new JFileChooser();
-        FileNameExtensionFilter filter = new FileNameExtensionFilter(sDocument, "etxt");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter(sDocument, "txt");
         fileChooser.setFileFilter(filter);
 
         int returnVal = fileChooser.showOpenDialog(this);
@@ -449,7 +452,7 @@ implements DocumentListener, WindowListener {
                 mzip.read(dis);
                 String s = new String(mzip.get());
 
-                TextArea.setText(s);
+                TextArea.setText(s.substring(1));
                 setTitle(curDocument.getName().replace(sEtxt, "")+sTitle);
                 fileContentModified = false;
                 curPassword = pwd.getPassword();
@@ -605,7 +608,7 @@ implements DocumentListener, WindowListener {
     // Variabili dichiarate manualmente
     private final String sTitle = " - JCryptoPad";
     private final String sDocument = "JCryptoPad Document";
-    private final String sEtxt = ".etxt";
+    private final String sEtxt = ".txt";
     private JFileChooser fileChooser;
     private File curDocument;
     private boolean fileContentModified;
